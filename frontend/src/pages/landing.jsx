@@ -1,53 +1,43 @@
-import React from 'react'
-import "../App.css"
-import { Link, useNavigate } from 'react-router-dom'
+import React from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import "../App.css";
+
 export default function LandingPage() {
-
-
-    const router = useNavigate();
+    const navigate = useNavigate();
 
     return (
         <div className='landingPageContainer'>
-            <nav>
+            <nav className="navbar">
                 <div className='navHeader'>
-                    <h2>Apna Video Call</h2>
+                    <h2>Vibe<span>Sync</span></h2>
                 </div>
+                
                 <div className='navlist'>
-                    <p onClick={() => {
-                        router("/aljk23")
-                    }}>Join as Guest</p>
-                    <p onClick={() => {
-                        router("/auth")
-
-                    }}>Register</p>
-                    <div onClick={() => {
-                        router("/auth")
-
-                    }} role='button'>
-                        <p>Login</p>
-                    </div>
+                    <p onClick={() => navigate("/guest")}>Join as Guest</p>
+                    <p onClick={() => navigate("/auth")}>Register</p>
+                    <div className="loginBtn" onClick={() => navigate("/auth")}>Login</div>
                 </div>
             </nav>
 
-
-            <div className="landingMainContainer">
-                <div>
-                    <h1><span style={{ color: "#FF9839" }}>Connect</span> with your loved Ones</h1>
-
-                    <p>Cover a distance by Apna Video Call</p>
-                    <div role='button'>
-                        <Link to={"/auth"}>Get Started</Link>
-                    </div>
+            <main className="landingMainContainer">
+                <div className="hero-text">
+                    <h1>
+                        <span className="blue-gradient-text">Seamless</span> meetings, anytime, anywhere.
+                    </h1>
+                    <p>
+                        High-quality video calls for teams who value clarity. 
+                        Connect with anyone, on any device, with VibeSync.
+                    </p>
+                    
+                    <Link to="/auth" className="cta-button">
+                        Get Started for Free
+                    </Link>
                 </div>
-                <div>
 
-                    <img src="/mobile.png" alt="" />
-
+                <div className="hero-image">
+                    <img src="/mobile.png" alt="VibeSync Interface" />
                 </div>
-            </div>
-
-
-
+            </main>
         </div>
-    )
+    );
 }

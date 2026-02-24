@@ -1,101 +1,166 @@
 import httpStatus from "http-status";
 import { User } from "../models/user.model.js";
-import bcrypt, { hash } from "bcrypt"
-
-import crypto from "crypto"
+import bcrypt from "bcryptjs";
+import crypto from "crypto";
 import { Meeting } from "../models/meeting.model.js";
-const login = async (req, res) => {
 
+/* ================= LOGIN ================= */
+
+const login = async (req, res) => {
     const { username, password } = req.body;
 
     if (!username || !password) {
-        return res.status(400).json({ message: "Please Provide" })
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: "Please provide username and password"
+        });
     }
 
     try {
         const user = await User.findOne({ username });
+
         if (!user) {
-            return res.status(httpStatus.NOT_FOUND).json({ message: "User Not Found" })
+            return res.status(httpStatus.NOT_FOUND).json({
+                message: "User not found"
+            });
         }
 
+        const isPasswordCorrect = await bcrypt.compare(password, user.password);
 
-        let isPasswordCorrect = await bcrypt.compare(password, user.password)
-
-        if (isPasswordCorrect) {
-            let token = crypto.randomBytes(20).toString("hex");
-
-            user.token = token;
-            await user.save();
-            return res.status(httpStatus.OK).json({ token: token })
-        } else {
-            return res.status(httpStatus.UNAUTHORIZED).json({ message: "Invalid Username or password" })
+        if (!isPasswordCorrect) {
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: "Invalid username or password"
+            });
         }
+
+        const token = crypto.randomBytes(20).toString("hex");
+        user.token = token;
+        await user.save();
+
+        return res.status(httpStatus.OK).json({ token });
 
     } catch (e) {
-        return res.status(500).json({ message: `Something went wrong ${e}` })
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: "Something went wrong",
+            error: e.message
+        });
     }
-}
+};
 
+
+/* ================= REGISTER ================= */
 
 const register = async (req, res) => {
     const { name, username, password } = req.body;
 
+    if (!name || !username || !password) {
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: "All fields are required"
+        });
+    }
 
     try {
         const existingUser = await User.findOne({ username });
+
         if (existingUser) {
-            return res.status(httpStatus.FOUND).json({ message: "User already exists" });
+            return res.status(httpStatus.CONFLICT).json({
+                message: "User already exists"
+            });
         }
 
         const hashedPassword = await bcrypt.hash(password, 10);
 
         const newUser = new User({
-            name: name,
-            username: username,
+            name,
+            username,
             password: hashedPassword
         });
 
         await newUser.save();
 
-        res.status(httpStatus.CREATED).json({ message: "User Registered" })
+        return res.status(httpStatus.CREATED).json({
+            message: "User registered successfully"
+        });
 
     } catch (e) {
-        res.json({ message: `Something went wrong ${e}` })
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: "Something went wrong",
+            error: e.message
+        });
     }
+};
 
-}
 
+/* ================= GET USER HISTORY ================= */
 
 const getUserHistory = async (req, res) => {
     const { token } = req.query;
 
-    try {
-        const user = await User.findOne({ token: token });
-        const meetings = await Meeting.find({ user_id: user.username })
-        res.json(meetings)
-    } catch (e) {
-        res.json({ message: `Something went wrong ${e}` })
+    if (!token) {
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: "Token is required"
+        });
     }
-}
+
+    try {
+        const user = await User.findOne({ token });
+
+        if (!user) {
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: "Invalid token"
+            });
+        }
+
+        const meetings = await Meeting.find({ user_id: user.username });
+
+        return res.status(httpStatus.OK).json(meetings);
+
+    } catch (e) {
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: "Something went wrong",
+            error: e.message
+        });
+    }
+};
+
+
+/* ================= ADD TO HISTORY ================= */
 
 const addToHistory = async (req, res) => {
     const { token, meeting_code } = req.body;
 
+    if (!token || !meeting_code) {
+        return res.status(httpStatus.BAD_REQUEST).json({
+            message: "Token and meeting code are required"
+        });
+    }
+
     try {
-        const user = await User.findOne({ token: token });
+        const user = await User.findOne({ token });
+
+        if (!user) {
+            return res.status(httpStatus.UNAUTHORIZED).json({
+                message: "Invalid token"
+            });
+        }
 
         const newMeeting = new Meeting({
             user_id: user.username,
             meetingCode: meeting_code
-        })
+        });
 
         await newMeeting.save();
 
-        res.status(httpStatus.CREATED).json({ message: "Added code to history" })
+        return res.status(httpStatus.CREATED).json({
+            message: "Meeting added to history"
+        });
+
     } catch (e) {
-        res.json({ message: `Something went wrong ${e}` })
+        return res.status(httpStatus.INTERNAL_SERVER_ERROR).json({
+            message: "Something went wrong",
+            error: e.message
+        });
     }
-}
+};
 
 
-export { login, register, getUserHistory, addToHistory }
+export { login, register, getUserHistory, addToHistory };
