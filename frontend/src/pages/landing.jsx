@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import "../App.css";
 
 export default function LandingPage() {
     const navigate = useNavigate();
+    // Logic for mobile menu toggle
+    const [menuOpen, setMenuOpen] = useState(false);
 
     return (
         <div className='landingPageContainer'>
@@ -11,11 +13,17 @@ export default function LandingPage() {
                 <div className='navHeader'>
                     <h2>Vibe<span>Sync</span></h2>
                 </div>
+
+                {/* Mobile Menu Icon - Only shows on small screens via CSS */}
+                <div className="mobile-toggle" onClick={() => setMenuOpen(!menuOpen)}>
+                    {menuOpen ? '✕' : '☰'}
+                </div>
                 
-                <div className='navlist'>
-                    <p onClick={() => navigate("/guest")}>Join as Guest</p>
-                    <p onClick={() => navigate("/auth")}>Register</p>
-                    <div className="loginBtn" onClick={() => navigate("/auth")}>Login</div>
+                {/* Your original navlist, now with a toggle class */}
+                <div className={`navlist ${menuOpen ? 'active' : ''}`}>
+                    <p onClick={() => { navigate("/guest"); setMenuOpen(false); }}>Join as Guest</p>
+                    <p onClick={() => { navigate("/auth"); setMenuOpen(false); }}>Register</p>
+                    <div className="loginBtn" onClick={() => { navigate("/auth"); setMenuOpen(false); }}>Login</div>
                 </div>
             </nav>
 

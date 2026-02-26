@@ -4,6 +4,7 @@ import cors from "cors";
 import dotenv from "dotenv";
 import http from "http";
 import { Server } from "socket.io";
+import userRoutes from "./routes/users.routes.js";
 
 // 🔥 Load environment variables
 dotenv.config();
@@ -11,11 +12,13 @@ dotenv.config();
 const app = express();
 
 /* ================= MIDDLEWARE ================= */
-
-app.use(cors());
+app.use(cors({
+    origin: ["http://localhost:3000","https://vibesyncfrontend.onrender.com"], // Change this to your frontend URL when you deploy
+    credentials: true
+}));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
-
+app.use("/api/v1/users", userRoutes);
 /* ================= DATABASE CONNECTION ================= */
 
 mongoose

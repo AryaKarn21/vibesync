@@ -211,3 +211,74 @@
     height: 100%;
     color: white;
 }
+/* --- Global Responsive Logic (Don't change existing classes, just add these) --- */
+
+/* 1. Hide the desktop menu and show Hamburger on mobile */
+.menu-icon {
+    display: none;
+    font-size: 1.8rem;
+    cursor: pointer;
+    color: #0052cc;
+}
+
+@media (max-width: 768px) {
+    /* Navbar Adjustment */
+    .navbar {
+        width: 95%; /* More width on mobile */
+        padding: 0.8rem 1rem;
+        margin: 10px auto;
+    }
+
+    .menu-icon {
+        display: block; /* Show ☰ */
+    }
+
+    /* Logic to hide links and stack them vertically when menu is open */
+    .navlist {
+        display: none; 
+        flex-direction: column;
+        position: absolute;
+        top: 75px;
+        left: 0;
+        width: 100%;
+        background: rgba(255, 255, 255, 0.95);
+        backdrop-filter: blur(10px);
+        padding: 2rem 0;
+        gap: 1.5rem;
+        border-radius: 0 0 20px 20px;
+        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        z-index: 100;
+    }
+
+    /* Toggle class for JavaScript */
+    .navlist.active {
+        display: flex;
+    }
+
+    /* 2. Hero Section Stacking */
+    .landingMainContainer {
+        flex-direction: column; /* Stacks text on top, image on bottom */
+        text-align: center;
+        padding: 2rem 5%;
+        margin-top: 20px;
+    }
+
+    .hero-text {
+        max-width: 100%;
+        margin-bottom: 2rem;
+    }
+
+    .hero-text h1 {
+        font-size: 2.2rem; /* Shrinks large text so it doesn't overlap */
+    }
+
+    .hero-image img {
+        max-width: 300px; /* Adjusts phone image to fit screen */
+        width: 100%;
+    }
+
+    .cta-button {
+        display: inline-block;
+        width: 80%; /* Easier to click on mobile */
+    }
+}
