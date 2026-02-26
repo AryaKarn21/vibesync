@@ -56,7 +56,7 @@ export default function VideoMeetComponent() {
             socketRef.current = io.connect(server_url, { secure: false });
             
             socketRef.current.on('connect', () => {
-                socketRef.current.emit('join-call', window.location.href);
+                socketRef.current.emit('join-call', window.location.pathname);
                 socketIdRef.current = socketRef.current.id;
 
                 socketRef.current.on('user-joined', (id, clients) => {
