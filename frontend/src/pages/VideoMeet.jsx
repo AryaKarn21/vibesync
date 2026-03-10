@@ -87,9 +87,11 @@ export default function VideoMeetComponent() {
     const connect = async () => {
         try {
 
-            socketRef.current = io(server_url, {
-                transports: ["websocket"]
-            });
+          socketRef.current = io(server_url, {
+           transports: ["websocket"],
+    reconnection: true,
+    reconnectionAttempts: 5
+      });
 
             const stream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
             localStreamRef.current = stream;
@@ -104,15 +106,17 @@ export default function VideoMeetComponent() {
 
                     clients.forEach((socketListId) => {
 
-                        if (!connections.current[socketListId]) {
-                            setupConnection(socketListId, stream);
-                        }
+                 if (socketListId === socketIdRef.current) return;
 
-                        if (id === socketIdRef.current && socketListId !== socketIdRef.current) {
-                            initiateOffer(socketListId);
-                        }
+                 if (!connections.current[socketListId]) {
+                setupConnection(socketListId, stream);
+             }
 
-                    });
+             if (id === socketIdRef.current) {
+              initiateOffer(socketListId);
+              }
+
+               });
 
                 });
 
@@ -181,24 +185,31 @@ export default function VideoMeetComponent() {
             }
 
         };
+        pc.oniceconnectionstatechange = () => {
+    console.log("ICE state:", pc.iceConnectionState);
+     };
 
         pc.ontrack = (event) => {
 
-            const remoteStream = event.streams[0];
-            if (!remoteStream) return;
+    const remoteStream = event.streams[0];
 
-            setVideos(prev => {
+    if (!remoteStream) return;
 
-                if (prev.some(v => v.socketId === socketListId)) return prev;
+    setVideos(prev => {
 
-                return [...prev, { socketId: socketListId, stream: remoteStream }];
+        const exists = prev.find(v => v.socketId === socketListId);
+        if (exists) return prev;
 
-            });
+        return [...prev, {
+            socketId: socketListId,
+            stream: remoteStream
+        }];
 
-        };
+    });
 
-        stream?.getTracks()?.forEach(track => pc.addTrack(track, stream));
-    };
+};
+    }
+    ;
 
     const initiateOffer = async (id) => {
 

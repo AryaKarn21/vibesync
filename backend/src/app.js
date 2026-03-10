@@ -6,132 +6,174 @@ import http from "http";
 import { Server } from "socket.io";
 import userRoutes from "./routes/users.routes.js";
 
-// 🔥 Load environment variables
 dotenv.config();
+
+/* ================= APP SETUP ================= */
 
 const app = express();
 const server = http.createServer(app);
 
 /* ================= MIDDLEWARE ================= */
+
 app.use(cors({
-    origin: ["http://localhost:3000", "https://vibesyncfrontend.onrender.com"],
-    credentials: true
+  origin: [
+    "http://localhost:3000",
+    "https://vibesyncfrontend.onrender.com"
+  ],
+  credentials: true
 }));
+
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
 app.use("/api/v1/users", userRoutes);
 
-/* ================= DATABASE CONNECTION ================= */
-mongoose
-    .connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ MongoDB Connected"))
-    .catch((err) => console.error("❌ MongoDB Connection Error:", err));
+/* ================= DATABASE ================= */
+
+mongoose.connect(process.env.MONGO_URI)
+.then(() => console.log("✅ MongoDB Connected"))
+.catch((err) => console.error("❌ MongoDB Connection Error:", err));
 
 /* ================= TEST ROUTE ================= */
+
 app.get("/", (req, res) => {
-    res.send("🚀 Vibesync Server is running...");
+  res.send("🚀 MeetNow server is running...");
 });
 
-/* ================= SERVER + SOCKET LOGIC ================= */
+/* ================= SOCKET.IO ================= */
+
 const io = new Server(server, {
-    cors: {
-        origin: "*",
-        methods: ["GET", "POST"],
-    },
+  cors: {
+    origin: [
+      "http://localhost:3000",
+      "https://vibesyncfrontend.onrender.com"
+    ],
+    methods: ["GET", "POST"]
+  }
 });
 
-let connections = {};
-let messages = {};
-let timeOnline = {};
+/* ================= MEMORY STORAGE ================= */
+
+const rooms = {};
+const messages = {};
+const timeOnline = {};
+
+/* ================= SOCKET EVENTS ================= */
 
 io.on("connection", (socket) => {
-    console.log("🟢 User connected:", socket.id);
 
-    // 1. JOIN CALL LOGIC
-    socket.on("join-call", (path) => {
-        if (connections[path] === undefined) {
-            connections[path] = [];
-        }
-        connections[path].push(socket.id);
-        timeOnline[socket.id] = new Date();
+  console.log("🟢 User connected:", socket.id);
 
-        // Join a Socket.io room for easier broadcasting
-        socket.join(path);
+  /* ===== JOIN CALL ===== */
 
-        console.log(`User ${socket.id} joined room ${path}`);
+  socket.on("join-call", (room) => {
 
-        // Notify everyone in the room
-        connections[path].forEach((id) => {
-            io.to(id).emit("user-joined", socket.id, connections[path]);
-        });
+    if (!rooms[room]) rooms[room] = [];
 
-        // Send existing chat history to the new user
-        if (messages[path] !== undefined) {
-            messages[path].forEach((msg) => {
-                io.to(socket.id).emit("chat-message", msg.data, msg.sender, msg['socket-id-sender']);
-            });
-        }
-    });
+    if (!rooms[room].includes(socket.id)) {
+      rooms[room].push(socket.id);
+    }
 
-    // 2. SIGNALING LOGIC (For Video/Audio)
-    socket.on("signal", (toId, message) => {
-        io.to(toId).emit("signal", socket.id, message);
-    });
+    socket.join(room);
+    socket.room = room;
 
-    // 3. CHAT MESSAGE LOGIC
-    socket.on("chat-message", (data, sender) => {
-        // Find which room the sender belongs to
-        const [matchingRoom, found] = Object.entries(connections)
-            .reduce(([room, isFound], [roomKey, roomValue]) => {
-                if (!isFound && roomValue.includes(socket.id)) {
-                    return [roomKey, true];
-                }
-                return [room, isFound];
-            }, ['', false]);
+    timeOnline[socket.id] = new Date();
 
-        if (found) {
-            if (messages[matchingRoom] === undefined) {
-                messages[matchingRoom] = [];
-            }
+    console.log(`📞 ${socket.id} joined room ${room}`);
 
-            messages[matchingRoom].push({ 
-                'sender': sender, 
-                "data": data, 
-                "socket-id-sender": socket.id 
-            });
+    // Notify others
+    socket.to(room).emit("user-joined", socket.id, rooms[room]);
 
-            console.log("New message in", matchingRoom, ":", sender, data);
+    // Send existing users to new user
+    socket.emit("room-users", rooms[room]);
 
-            // Broadcast to everyone in that room
-            io.to(matchingRoom).emit("chat-message", data, sender, socket.id);
-        }
-    });
+    // Send chat history
+    if (messages[room]) {
+      messages[room].forEach(msg => {
+        socket.emit("chat-message", msg.data, msg.sender, msg.socketId);
+      });
+    }
 
-    // 4. DISCONNECT LOGIC
-    socket.on("disconnect", () => {
-        console.log("🔴 User disconnected:", socket.id);
+  });
 
-        for (const key in connections) {
-            const index = connections[key].indexOf(socket.id);
-            if (index !== -1) {
-                // Notify others in the room
-                connections[key].forEach((id) => {
-                    io.to(id).emit('user-left', socket.id);
-                });
+  /* ===== WEBRTC SIGNAL ===== */
 
-                connections[key].splice(index, 1);
+  socket.on("signal", (toId, message) => {
+    io.to(toId).emit("signal", socket.id, message);
+  });
 
-                if (connections[key].length === 0) {
-                    delete connections[key];
-                }
-            }
-        }
-        delete timeOnline[socket.id];
-    });
+  /* ===== CHAT MESSAGE ===== */
+
+  socket.on("chat-message", (data, sender) => {
+
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
+
+    if (!messages[room]) messages[room] = [];
+
+    const messageData = {
+      sender,
+      data,
+      socketId: socket.id
+    };
+
+    messages[room].push(messageData);
+
+    // keep last 100 messages only
+    messages[room] = messages[room].slice(-100);
+
+    io.to(room).emit("chat-message", data, sender, socket.id);
+
+  });
+
+  /* ===== MEDIA ACTION (Mute / Video Toggle) ===== */
+
+  socket.on("action", (actionType, value) => {
+
+    const room = socket.room;
+    if (!room || !rooms[room]) return;
+
+    socket.to(room).emit("action-received", socket.id, actionType, value);
+
+    console.log(`🎬 ${actionType} from ${socket.id} = ${value}`);
+
+  });
+
+  /* ===== DISCONNECT ===== */
+
+  socket.on("disconnect", () => {
+
+    console.log("🔴 User disconnected:", socket.id);
+
+    const room = socket.room;
+
+    if (room && rooms[room]) {
+
+      rooms[room] = rooms[room].filter(id => id !== socket.id);
+
+      socket.to(room).emit("user-left", socket.id);
+
+      if (rooms[room].length === 0) {
+        delete rooms[room];
+        delete messages[room];
+      }
+    }
+
+    if (timeOnline[socket.id]) {
+      const duration = (new Date() - timeOnline[socket.id]) / 1000;
+      console.log(`⏱️ User stayed ${duration}s`);
+    }
+
+    delete timeOnline[socket.id];
+
+  });
+
 });
 
-/* ================= START SERVER ================= */
+/* ================= SERVER ================= */
+
 const PORT = process.env.PORT || 8000;
+
 server.listen(PORT, () => {
-    console.log(`🔥 Server listening on port ${PORT}`);
+  console.log(`🔥 Server running on port ${PORT}`);
 });
