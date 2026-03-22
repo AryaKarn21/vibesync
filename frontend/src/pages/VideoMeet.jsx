@@ -15,7 +15,6 @@ const peerConfig = {
         { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" }
     ]
 };
-  
 
 const VideoItem = ({ stream, name, isLocal = false, isScreen = false }) => {
     const ref = useRef();
