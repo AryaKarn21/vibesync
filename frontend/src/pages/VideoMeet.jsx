@@ -15,7 +15,7 @@ const peerConfig = {
         { urls: "turn:openrelay.metered.ca:443", username: "openrelayproject", credential: "openrelayproject" }
     ]
 };
-  const userNamesRef = useRef({});
+  
 
 const VideoItem = ({ stream, name, isLocal = false, isScreen = false }) => {
     const ref = useRef();
@@ -96,22 +96,13 @@ export default function VideoMeetComponent() {
     };
 
     const setupListeners = () => {
-       socketRef.current.on("user-joined", (id, clients, userNamesMap) => {
-
-    // ✅ Save latest map
-    if (userNamesMap) {
-        userNamesRef.current = userNamesMap;
-    }
-
-    clients.forEach(targetId => {
-        if (targetId !== socketRef.current.id && !connections.current[targetId]) {
-
-            const name = userNamesRef.current[targetId] || "User";
-
-            createPeer(targetId, true, name);
-        }
-    });
-});
+        socketRef.current.on("user-joined", (id, clients, userNamesMap) => {
+            clients.forEach(targetId => {
+                if (targetId !== socketRef.current.id && !connections.current[targetId]) {
+                    createPeer(targetId, true, userNamesMap[targetId]);
+                }
+            });
+        });
 
         socketRef.current.on("signal", async (fromId, message) => {
             const signal = JSON.parse(message);
@@ -126,8 +117,7 @@ export default function VideoMeetComponent() {
                         socketRef.current.emit("signal", fromId, JSON.stringify({ sdp: pc.localDescription }));
                     }
                 } else if (signal.ice) {
-                    await pc.addIceCandidate(new RTCIceCandidate(signal.ice))
-          .catch(e => console.warn("ICE error:", e));
+                    await pc.addIceCandidate(new RTCIceCandidate(signal.ice));
                 }
             } catch (e) { console.warn("Signaling error:", e); }
         });
